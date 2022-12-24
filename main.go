@@ -60,9 +60,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to read feed: %s", err)
 	}
-	for _, item := range feed.Items {
-		log.Infof("feed item: published=%s, title: %s, description: %s", item.PublishedParsed.Format("15:04:05 02.01.2006"), item.Title, item.Description)
-	}
 
 	//weather
 	if len(*weatherApiKey) == 0 {
