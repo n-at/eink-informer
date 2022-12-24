@@ -30,6 +30,8 @@ const (
 func main() {
 	verbose := flag.Bool("verbose", false, "show extended output")
 	feedUrl := flag.String("feed", "https://tass.ru/rss/v2.xml", "News feed (RSS, Atom), required")
+	feedTitleMaxLength := flag.Int("feed-title-max-length", 100, "maximum length of feed item title")
+	feedContentMaxLength := flag.Int("feed-content-max-length", 200, "maximum length of feed content text")
 	weatherApiKey := flag.String("weather-api-key", "", "openweathermap.org API key, required")
 	weatherLanguage := flag.String("weather-language", "ru", "weather display language")
 	weatherUnits := flag.String("weather-units", "C", "weather measurement system, one of: C, F, K")
@@ -118,7 +120,7 @@ func main() {
 		item := feed.Items[itemIdx]
 
 		ctx.SetFontFace(fontFeedHeader)
-		header := fmt.Sprintf("%s %s", item.PublishedParsed.Format("15:04:05 02.01.2006"), item.Title)
+		header := fmt.Sprintf("%s %s", item.PublishedParsed.Format("15:04:05 02.01.2006"), trimFeedText(item.Title, *feedTitleMaxLength))
 		headerWrapped := ctx.WordWrap(header, FeedWidth)
 		for _, headerLine := range headerWrapped {
 			_, h := ctx.MeasureString(headerLine)
@@ -127,10 +129,10 @@ func main() {
 		}
 
 		ctx.SetFontFace(fontFeedText)
-		textWrapped := ctx.WordWrap(item.Description, FeedWidth)
-		for _, textLine := range textWrapped {
-			_, h := ctx.MeasureString(textLine)
-			ctx.DrawString(textLine, FeedStartX, currentY)
+		contentWrapped := ctx.WordWrap(trimFeedText(item.Description, *feedContentMaxLength), FeedWidth)
+		for _, contentLine := range contentWrapped {
+			_, h := ctx.MeasureString(contentLine)
+			ctx.DrawString(contentLine, FeedStartX, currentY)
 			currentY += h
 		}
 
@@ -145,7 +147,18 @@ func main() {
 		}
 	}
 
+	//weather
+	//TODO
+
 	if err := ctx.SavePNG(*imageOutputPath); err != nil {
 		log.Fatalf("unable to save output image: %s", err)
+	}
+}
+
+func trimFeedText(s string, l int) string {
+	if len([]rune(s)) < l {
+		return s
+	} else {
+		return string([]rune(s)[:l]) + "..."
 	}
 }
