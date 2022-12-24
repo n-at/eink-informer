@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/briandowns/openweathermap"
+	owm "github.com/briandowns/openweathermap"
 	"github.com/fogleman/gg"
 	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
@@ -66,19 +66,26 @@ func main() {
 		log.Fatal("openweathermap.org API key required")
 	}
 	log.Info("read weather")
-
-	currentWeather, err := openweathermap.NewCurrent(*weatherUnits, *weatherLanguage, *weatherApiKey)
+	currentWeather, err := owm.NewCurrent(*weatherUnits, *weatherLanguage, *weatherApiKey)
 	if err != nil {
 		log.Fatalf("unable to get current weather: %s", err)
 	}
-	//if err := currentWeather.CurrentByName(*weatherLocation); err != nil {
-	//	log.Fatalf("unable to get current weather by location: %s", err)
-	//}
+	if err := currentWeather.CurrentByName(*weatherLocation); err != nil {
+		log.Fatalf("unable to get current weather by location: %s", err)
+	}
+	weatherForecast, err := owm.NewForecast("5", *weatherUnits, *weatherLanguage, *weatherApiKey)
+	if err != nil {
+		log.Fatalf("unable to get weather forecast: %s", err)
+	}
+	if err := weatherForecast.DailyByName(*weatherLocation, 5*8); err != nil {
+		log.Fatalf("unable to get weather forecast by location: %s", err)
+	}
 
 	//TODO
-	fmt.Println(weatherLocation)
 	fmt.Println(currentWeather)
+	fmt.Println(weatherForecast.ForecastWeatherJson)
 
+	//load fonts
 	fontHeading, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
 	if err != nil {
 		log.Fatalf("unable to load heading font: %s", err)
@@ -104,14 +111,14 @@ func main() {
 	ctx.SetLineWidth(1)
 	ctx.Stroke()
 
-	//current date and time
+	//draw current date and time
 	currentDate := time.Now().Format("02.01.2006 15:04")
 	ctx.SetFontFace(fontHeading)
 	ctx.SetColor(color.Black)
 	w, h := ctx.MeasureString(currentDate)
 	ctx.DrawString(currentDate, ImageWidth-w-10, h)
 
-	//feed
+	//draw feed
 	currentY := h + DatePadding + FeedPadding
 	for itemIdx := 0; itemIdx < len(feed.Items); itemIdx++ {
 		item := feed.Items[itemIdx]
@@ -144,7 +151,7 @@ func main() {
 		}
 	}
 
-	//weather
+	//draw weather
 	//TODO
 
 	if err := ctx.SavePNG(*imageOutputPath); err != nil {
