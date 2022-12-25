@@ -7,7 +7,9 @@ import (
 	"github.com/fogleman/gg"
 	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
+	"image"
 	"image/color"
+	"math"
 	"os"
 	"time"
 )
@@ -25,7 +27,20 @@ const (
 	FeedStartX  = WeatherWidth + Padding
 	FeedWidth   = ImageWidth - FeedStartX
 	FeedPadding = 15.0
+
+	TimezoneOffset = +3.0
 )
+
+type weather struct {
+	icon       image.Image
+	conditions string
+	tempMin    string
+	tempMax    string
+	tempCur    string
+	tempRange  string
+	humidity   int
+	time       string
+}
 
 func main() {
 	verbose := flag.Bool("verbose", false, "show extended output")
@@ -81,9 +96,14 @@ func main() {
 		log.Fatalf("unable to get weather forecast by location: %s", err)
 	}
 
+	weatherValueCurrent := extractWeatherFromCurrent(currentWeather)
+	var weatherValueForecast []weather
+	for _, item := range weatherForecast.ForecastWeatherJson.(*owm.Forecast5WeatherData).List {
+		weatherValueForecast = append(weatherValueForecast, extractWeatherFromForecast(item))
+	}
 	//TODO
-	fmt.Println(currentWeather)
-	fmt.Println(weatherForecast.ForecastWeatherJson)
+	fmt.Println(weatherValueCurrent)
+	fmt.Println(weatherValueForecast)
 
 	//load fonts
 	fontHeading, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
@@ -124,7 +144,7 @@ func main() {
 		item := feed.Items[itemIdx]
 
 		ctx.SetFontFace(fontFeedHeader)
-		header := fmt.Sprintf("%s %s", item.PublishedParsed.Format("15:04:05 02.01.2006"), trimFeedText(item.Title, *feedTitleMaxLength))
+		header := fmt.Sprintf("%s %s", item.PublishedParsed.Format("15:04 02.01.2006"), trimFeedText(item.Title, *feedTitleMaxLength))
 		headerWrapped := ctx.WordWrap(header, FeedWidth)
 		for _, headerLine := range headerWrapped {
 			_, h := ctx.MeasureString(headerLine)
@@ -159,10 +179,67 @@ func main() {
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 func trimFeedText(s string, l int) string {
 	if len([]rune(s)) < l {
 		return s
 	} else {
 		return string([]rune(s)[:l]) + "..."
 	}
+}
+
+func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
+	w := extractWeather(current.Weather)
+	w.tempMin = formatTemperature(current.Main.TempMin)
+	w.tempCur = formatTemperature(current.Main.Temp)
+	w.tempMax = formatTemperature(current.Main.TempMax)
+	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
+	w.humidity = current.Main.Humidity
+	w.time = time.Unix(int64(current.Dt), 0).Add(TimezoneOffset * time.Hour).Format("15:04 02.01")
+	return w
+}
+
+func extractWeatherFromForecast(forecast owm.Forecast5WeatherList) weather {
+	w := extractWeather(forecast.Weather)
+	w.tempMin = formatTemperature(forecast.Main.TempMin)
+	w.tempCur = formatTemperature(forecast.Main.Temp)
+	w.tempMax = formatTemperature(forecast.Main.TempMax)
+	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
+	w.humidity = forecast.Main.Humidity
+	w.time = forecast.DtTxt.Add(TimezoneOffset * time.Hour).Format("15:04 02.01")
+	return w
+}
+
+func extractWeather(items []owm.Weather) weather {
+	w := weather{}
+	icon := ""
+
+	for _, item := range items {
+		if len(item.Icon) != 0 && len(icon) == 0 {
+			icon = item.Icon
+		}
+		if len(item.Description) == 0 {
+			continue
+		}
+		if len(w.conditions) != 0 {
+			w.conditions += ", "
+		}
+		w.conditions += item.Description
+	}
+
+	if len(icon) != 0 {
+		img, err := gg.LoadImage(fmt.Sprintf("icons/%s.png", icon)) //TODO check icon file name
+		if err != nil {
+			log.Errorf("unable to load icon %s: %s", icon, err)
+			img = nil
+		}
+		w.icon = img
+	}
+
+	return w
+}
+
+func formatTemperature(value float64) string {
+	return fmt.Sprintf("%+d", int(math.Round(value)))
 }
