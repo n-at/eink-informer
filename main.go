@@ -21,17 +21,24 @@ const (
 	Padding     = 5.0
 	DatePadding = 10.0
 
-	WeatherStartX        = 0.0
-	WeatherWidth         = ImageWidth / 2.0
-	WeatherBigIconSize   = 60
-	WeatherSmallIconSize = 30
-	WeatherPadding       = 10
+	WeatherStartX         = 0.0
+	WeatherWidth          = ImageWidth / 2.0
+	WeatherBigIconSize    = 60
+	WeatherSmallIconSize  = 30
+	WeatherPadding        = 10
+	WeatherForecastWidth  = 50
+	WeatherForecastHeight = 100
 
 	FeedStartX  = WeatherWidth + Padding
 	FeedWidth   = ImageWidth - FeedStartX
 	FeedPadding = 15.0
 
 	TimezoneOffset = +3.0
+)
+
+var (
+	iconUnknownBig   image.Image
+	iconUnknownSmall image.Image
 )
 
 type weather struct {
@@ -43,6 +50,7 @@ type weather struct {
 	tempCur    string
 	tempRange  string
 	humidity   int
+	date       string
 	time       string
 }
 
@@ -67,6 +75,16 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
+	}
+
+	var err error
+	iconUnknownBig, err = gg.LoadImage("icons/60/unknown.png")
+	if err != nil {
+		log.Fatalf("unable to load big unknown image: %s", err)
+	}
+	iconUnknownSmall, err = gg.LoadImage("icons/30/unknown.png")
+	if err != nil {
+		log.Fatalf("unable to load small unknown image: %s", err)
 	}
 
 	//rss
@@ -105,8 +123,6 @@ func main() {
 	for _, item := range weatherForecast.ForecastWeatherJson.(*owm.Forecast5WeatherData).List {
 		weatherValueForecast = append(weatherValueForecast, extractWeatherFromForecast(item))
 	}
-	//TODO
-	fmt.Println(weatherValueForecast)
 
 	//load fonts
 	fontHeading, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
@@ -128,6 +144,10 @@ func main() {
 	fontWeatherConditions, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 18)
 	if err != nil {
 		log.Fatalf("unable to load weather conditions font: %s", err)
+	}
+	fontWeatherForecast, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 12)
+	if err != nil {
+		log.Fatalf("unable to load weather forecast font: %s", err)
 	}
 
 	//draw
@@ -184,20 +204,48 @@ func main() {
 
 	//draw weather
 	//current
-	weatherCurrentXOffset := 0.0
-	if weatherValueCurrent.iconBig != nil {
-		ctx.DrawImage(weatherValueCurrent.iconBig, WeatherStartX, 0)
-		weatherCurrentXOffset = WeatherBigIconSize + WeatherPadding
-	}
+	ctx.DrawImage(weatherValueCurrent.iconBig, WeatherStartX, 0)
 	//current temp/humidity
 	ctx.SetFontFace(fontWeatherCurrent)
-	ctx.DrawString(fmt.Sprintf("%s° / %d%%", weatherValueCurrent.tempCur, weatherValueCurrent.humidity), WeatherStartX+weatherCurrentXOffset, 30)
+	ctx.DrawString(fmt.Sprintf("%s° / %d%%", weatherValueCurrent.tempCur, weatherValueCurrent.humidity), WeatherStartX+WeatherBigIconSize+WeatherPadding, 30)
 	//current conditions
-	conditions := ctx.WordWrap(weatherValueCurrent.conditions, ImageWidth-WeatherStartX-weatherCurrentXOffset)
+	conditions := ctx.WordWrap(weatherValueCurrent.conditions, ImageWidth-WeatherStartX-WeatherBigIconSize+WeatherPadding)
 	ctx.SetFontFace(fontWeatherConditions)
-	ctx.DrawString(conditions[0], WeatherStartX+weatherCurrentXOffset, 50)
+	ctx.DrawString(conditions[0], WeatherStartX+WeatherBigIconSize+WeatherPadding, 50)
 	//forecast
-	//TODO
+	forecastCurrentX := int(WeatherStartX)
+	forecastCurrentY := WeatherBigIconSize + WeatherPadding
+	for _, item := range weatherValueForecast {
+		ctx.DrawImage(item.iconSmall, forecastCurrentX+(WeatherForecastWidth-WeatherSmallIconSize)/2, forecastCurrentY)
+
+		ctx.SetFontFace(fontWeatherForecast)
+		dateW, dateH := ctx.MeasureString(item.date)
+		x := float64(forecastCurrentX) + (WeatherForecastWidth-dateW)/2.0
+		y := float64(forecastCurrentY) + WeatherSmallIconSize + WeatherPadding
+		ctx.DrawString(item.date, x, y)
+
+		ctx.SetFontFace(fontWeatherForecast)
+		timeW, timeH := ctx.MeasureString(item.time)
+		x = float64(forecastCurrentX) + (WeatherForecastWidth-timeW)/2.0
+		y = float64(forecastCurrentY) + WeatherSmallIconSize + WeatherPadding + dateH + 5
+		ctx.DrawString(item.time, x, y)
+
+		ctx.SetFontFace(fontWeatherForecast)
+		tempW, _ := ctx.MeasureString(item.tempRange)
+		x = float64(forecastCurrentX) + (WeatherForecastWidth-tempW)/2.0
+		y = float64(forecastCurrentY) + WeatherSmallIconSize + WeatherPadding + dateH + timeH + 10
+		ctx.DrawString(item.tempRange, x, y)
+
+		//next forecast block position
+		forecastCurrentX += WeatherForecastWidth
+		if forecastCurrentX+WeatherForecastWidth > WeatherWidth+WeatherStartX {
+			forecastCurrentX = WeatherStartX
+			forecastCurrentY += WeatherForecastHeight
+		}
+		if forecastCurrentY+WeatherForecastHeight > ImageHeight {
+			break
+		}
+	}
 
 	if err := ctx.SavePNG(*imageOutputPath); err != nil {
 		log.Fatalf("unable to save output image: %s", err)
@@ -221,7 +269,10 @@ func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
 	w.tempMax = formatTemperature(current.Main.TempMax)
 	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
 	w.humidity = current.Main.Humidity
-	w.time = time.Unix(int64(current.Dt), 0).Add(TimezoneOffset * time.Hour).Format("15:04 02.01")
+
+	t := time.Unix(int64(current.Dt), 0).Add(TimezoneOffset * time.Hour)
+	w.time = t.Format("15:04")
+	w.date = t.Format("02.01")
 	return w
 }
 
@@ -232,7 +283,10 @@ func extractWeatherFromForecast(forecast owm.Forecast5WeatherList) weather {
 	w.tempMax = formatTemperature(forecast.Main.TempMax)
 	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
 	w.humidity = forecast.Main.Humidity
-	w.time = forecast.DtTxt.Add(TimezoneOffset * time.Hour).Format("15:04 02.01")
+
+	t := forecast.DtTxt.Add(TimezoneOffset * time.Hour)
+	w.time = t.Format("15:04")
+	w.date = t.Format("02.01")
 	return w
 }
 
@@ -267,6 +321,12 @@ func extractWeather(items []owm.Weather) weather {
 			imgSmall = nil
 		}
 		w.iconSmall = imgSmall
+	}
+	if w.iconBig == nil {
+		w.iconBig = iconUnknownBig
+	}
+	if w.iconSmall == nil {
+		w.iconSmall = iconUnknownSmall
 	}
 
 	return w
