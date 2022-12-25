@@ -1,0 +1,57 @@
+name: Make release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '^1.19'
+
+      - run: go get .
+      
+      - run: GOOS=darwin GOARCH=amd64 go build -a -o eink-informer-darwin-amd64
+      - run: zip eink-informer-darwin-amd64.zip eink-informer-darwin-amd64 fonts icons LICENSE.txt
+      
+      - run: GOOS=darwin GOARCH=arm64 go build -a -o eink-informer-darwin-arm64
+      - run: zip eink-informer-darwin-arm64.zip eink-informer-darwin-arm64 fonts icons LICENSE.txt
+      
+      - run: GOOS=linux GOARCH=386 go build -a -o eink-informer-linux-i386
+      - run: zip eink-informer-linux-i386.zip eink-informer-linux-i386 fonts icons LICENSE.txt
+      
+      - run: GOOS=linux GOARCH=amd64 go build -a -o eink-informer-linux-amd64
+      - run: zip eink-informer-linux-amd64.zip eink-informer-linux-amd64 fonts icons LICENSE.txt
+      
+      - run: GOOS=linux GOARCH=arm64 go build -a -o eink-informer-linux-arm64
+      - run: zip eink-informer-linux-arm64.zip eink-informer-linux-arm64 fonts icons LICENSE.txt
+      
+      - run: GOOS=windows GOARCH=386 go build -a -o eink-informer-windows-i386.exe
+      - run: zip eink-informer-windows-i386.zip eink-informer-windows-i386.exe fonts icons LICENSE.txt
+      
+      - run: GOOS=windows GOARCH=amd64 go build -a -o eink-informer-windows-amd64.exe
+      - run: eink-informer-windows-amd64.zip eink-informer-windows-amd64.exe fonts icons LICENSE.txt
+      
+      - run: GOOS=windows GOARCH=arm64 go build -a -o eink-informer-windows-arm64.exe
+      - run: zip eink-informer-windows-arm64.zip eink-informer-windows-arm64.exe fonts icons LICENSE.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            eink-informer-darwin-amd64.zip
+            eink-informer-darwin-arm64.zip
+            eink-informer-linux-i386.zip
+            eink-informer-linux-amd64.zip
+            eink-informer-linux-arm64.zip
+            eink-informer-windows-i386.zip
+            eink-informer-windows-amd64.zip
+            eink-informer-windows-arm64.zip
