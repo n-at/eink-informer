@@ -3,6 +3,8 @@
 Creates image with information for e-ink display.
 Prints RSS feed and weather forecast on image that can be output on e-ink display via [go-eink](https://github.com/n-at/go-eink). 
 
+![Example output](assets/example.png)
+
 ## Build
 
 Go 1.19+ required.
