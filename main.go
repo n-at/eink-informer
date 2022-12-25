@@ -33,8 +33,6 @@ const (
 	FeedStartX  = WeatherWidth + Padding
 	FeedWidth   = ImageWidth - FeedStartX
 	FeedPadding = 15.0
-
-	TimezoneOffset = +3.0
 )
 
 var (
@@ -49,6 +47,8 @@ var (
 	iconUnknownSmall  image.Image
 	weatherIconsBig   = make(map[string]image.Image)
 	weatherIconsSmall = make(map[string]image.Image)
+
+	timezoneOffset = +3.0
 )
 
 type weather struct {
@@ -74,6 +74,7 @@ func main() {
 	weatherUnits := flag.String("weather-units", "C", "weather measurement system, one of: C, F, K")
 	weatherLocation := flag.String("weather-location", "Pskov, Russia", "weather location name")
 	imageOutputPath := flag.String("output", "output.png", "image output path, required")
+	offset := flag.Float64("timezone-offset", 3.0, "timezone offset, hours")
 	flag.Parse()
 
 	//prepare logger
@@ -88,6 +89,7 @@ func main() {
 	}
 
 	loadResources()
+	timezoneOffset = *offset
 
 	//rss
 	if len(*feedUrl) == 0 {
@@ -293,7 +295,7 @@ func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
 	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
 	w.humidity = current.Main.Humidity
 
-	t := time.Unix(int64(current.Dt), 0).Add(TimezoneOffset * time.Hour)
+	t := time.Unix(int64(current.Dt), 0).Add(time.Duration(timezoneOffset * float64(time.Hour)))
 	w.time = t.Format("15:04")
 	w.date = t.Format("02.01")
 	return w
@@ -307,7 +309,7 @@ func extractWeatherFromForecast(forecast owm.Forecast5WeatherList) weather {
 	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
 	w.humidity = forecast.Main.Humidity
 
-	t := forecast.DtTxt.Add(TimezoneOffset * time.Hour)
+	t := forecast.DtTxt.Add(time.Duration(timezoneOffset * float64(time.Hour)))
 	w.time = t.Format("15:04")
 	w.date = t.Format("02.01")
 	return w
