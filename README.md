@@ -22,8 +22,6 @@ go build -a -o app
     maximum length of feed item title (default 100)
 -output string
     image output path, required (default "output.png")
--timezone-offset float
-    timezone offset, hours (default 3)
 -verbose
     show extended output
 -weather-api-key string
@@ -34,6 +32,8 @@ go build -a -o app
     weather location name (default "Pskov, Russia")
 -weather-units string
     weather measurement system, one of: C, F, K (default "C")
+-weather-timezone-offset float
+    timezone offset, hours (default 3)
 ```
 
 ## Uses

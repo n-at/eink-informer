@@ -74,7 +74,7 @@ func main() {
 	weatherUnits := flag.String("weather-units", "C", "weather measurement system, one of: C, F, K")
 	weatherLocation := flag.String("weather-location", "Pskov, Russia", "weather location name")
 	imageOutputPath := flag.String("output", "output.png", "image output path, required")
-	offset := flag.Float64("timezone-offset", 3.0, "timezone offset, hours")
+	offset := flag.Float64("weather-timezone-offset", 3.0, "timezone offset, hours")
 	flag.Parse()
 
 	//prepare logger
