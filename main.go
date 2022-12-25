@@ -21,8 +21,11 @@ const (
 	Padding     = 5.0
 	DatePadding = 10.0
 
-	WeatherStartX = 0.0
-	WeatherWidth  = ImageWidth / 2.0
+	WeatherStartX        = 0.0
+	WeatherWidth         = ImageWidth / 2.0
+	WeatherBigIconSize   = 60
+	WeatherSmallIconSize = 30
+	WeatherPadding       = 10
 
 	FeedStartX  = WeatherWidth + Padding
 	FeedWidth   = ImageWidth - FeedStartX
@@ -32,7 +35,8 @@ const (
 )
 
 type weather struct {
-	icon       image.Image
+	iconBig    image.Image
+	iconSmall  image.Image
 	conditions string
 	tempMin    string
 	tempMax    string
@@ -46,7 +50,7 @@ func main() {
 	verbose := flag.Bool("verbose", false, "show extended output")
 	feedUrl := flag.String("feed", "https://tass.ru/rss/v2.xml", "News feed (RSS, Atom), required")
 	feedTitleMaxLength := flag.Int("feed-title-max-length", 100, "maximum length of feed item title")
-	feedContentMaxLength := flag.Int("feed-content-max-length", 200, "maximum length of feed content text")
+	feedContentMaxLength := flag.Int("feed-content-max-length", 150, "maximum length of feed content text")
 	weatherApiKey := flag.String("weather-api-key", "", "openweathermap.org API key, required")
 	weatherLanguage := flag.String("weather-language", "ru", "weather display language")
 	weatherUnits := flag.String("weather-units", "C", "weather measurement system, one of: C, F, K")
@@ -102,7 +106,6 @@ func main() {
 		weatherValueForecast = append(weatherValueForecast, extractWeatherFromForecast(item))
 	}
 	//TODO
-	fmt.Println(weatherValueCurrent)
 	fmt.Println(weatherValueForecast)
 
 	//load fonts
@@ -117,6 +120,14 @@ func main() {
 	fontFeedText, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
 	if err != nil {
 		log.Fatalf("unable to load feed text font: %s", err)
+	}
+	fontWeatherCurrent, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
+	if err != nil {
+		log.Fatalf("unable to load weather current font: %s", err)
+	}
+	fontWeatherConditions, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 18)
+	if err != nil {
+		log.Fatalf("unable to load weather conditions font: %s", err)
 	}
 
 	//draw
@@ -172,6 +183,20 @@ func main() {
 	}
 
 	//draw weather
+	//current
+	weatherCurrentXOffset := 0.0
+	if weatherValueCurrent.iconBig != nil {
+		ctx.DrawImage(weatherValueCurrent.iconBig, WeatherStartX, 0)
+		weatherCurrentXOffset = WeatherBigIconSize + WeatherPadding
+	}
+	//current temp/humidity
+	ctx.SetFontFace(fontWeatherCurrent)
+	ctx.DrawString(fmt.Sprintf("%s° / %d%%", weatherValueCurrent.tempCur, weatherValueCurrent.humidity), WeatherStartX+weatherCurrentXOffset, 30)
+	//current conditions
+	conditions := ctx.WordWrap(weatherValueCurrent.conditions, ImageWidth-WeatherStartX-weatherCurrentXOffset)
+	ctx.SetFontFace(fontWeatherConditions)
+	ctx.DrawString(conditions[0], WeatherStartX+weatherCurrentXOffset, 50)
+	//forecast
 	//TODO
 
 	if err := ctx.SavePNG(*imageOutputPath); err != nil {
@@ -229,12 +254,19 @@ func extractWeather(items []owm.Weather) weather {
 	}
 
 	if len(icon) != 0 {
-		img, err := gg.LoadImage(fmt.Sprintf("icons/%s.png", icon)) //TODO check icon file name
+		imgBig, err := gg.LoadImage(fmt.Sprintf("icons/60/%s.png", icon)) //TODO check icon file name
 		if err != nil {
-			log.Errorf("unable to load icon %s: %s", icon, err)
-			img = nil
+			log.Errorf("unable to load big icon %s: %s", icon, err)
+			imgBig = nil
 		}
-		w.icon = img
+		w.iconBig = imgBig
+
+		imgSmall, err := gg.LoadImage(fmt.Sprintf("icons/30/%s.png", icon))
+		if err != nil {
+			log.Errorf("unable to load small image %s: %s", icon, err)
+			imgSmall = nil
+		}
+		w.iconSmall = imgSmall
 	}
 
 	return w
