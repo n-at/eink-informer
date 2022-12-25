@@ -7,6 +7,7 @@ import (
 	"github.com/fogleman/gg"
 	"github.com/mmcdole/gofeed"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/image/font"
 	"image"
 	"image/color"
 	"math"
@@ -37,8 +38,17 @@ const (
 )
 
 var (
-	iconUnknownBig   image.Image
-	iconUnknownSmall image.Image
+	fontHeading           font.Face
+	fontFeedHeader        font.Face
+	fontFeedText          font.Face
+	fontWeatherCurrent    font.Face
+	fontWeatherConditions font.Face
+	fontWeatherForecast   font.Face
+
+	iconUnknownBig    image.Image
+	iconUnknownSmall  image.Image
+	weatherIconsBig   = make(map[string]image.Image)
+	weatherIconsSmall = make(map[string]image.Image)
 )
 
 type weather struct {
@@ -77,15 +87,7 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	var err error
-	iconUnknownBig, err = gg.LoadImage("icons/60/unknown.png")
-	if err != nil {
-		log.Fatalf("unable to load big unknown image: %s", err)
-	}
-	iconUnknownSmall, err = gg.LoadImage("icons/30/unknown.png")
-	if err != nil {
-		log.Fatalf("unable to load small unknown image: %s", err)
-	}
+	loadResources()
 
 	//rss
 	if len(*feedUrl) == 0 {
@@ -122,32 +124,6 @@ func main() {
 	var weatherValueForecast []weather
 	for _, item := range weatherForecast.ForecastWeatherJson.(*owm.Forecast5WeatherData).List {
 		weatherValueForecast = append(weatherValueForecast, extractWeatherFromForecast(item))
-	}
-
-	//load fonts
-	fontHeading, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
-	if err != nil {
-		log.Fatalf("unable to load heading font: %s", err)
-	}
-	fontFeedHeader, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 16)
-	if err != nil {
-		log.Fatalf("unable to load feed header font: %s", err)
-	}
-	fontFeedText, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
-	if err != nil {
-		log.Fatalf("unable to load feed text font: %s", err)
-	}
-	fontWeatherCurrent, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
-	if err != nil {
-		log.Fatalf("unable to load weather current font: %s", err)
-	}
-	fontWeatherConditions, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 18)
-	if err != nil {
-		log.Fatalf("unable to load weather conditions font: %s", err)
-	}
-	fontWeatherForecast, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
-	if err != nil {
-		log.Fatalf("unable to load weather forecast font: %s", err)
 	}
 
 	//draw
@@ -254,11 +230,58 @@ func main() {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func trimFeedText(s string, l int) string {
-	if len([]rune(s)) < l {
-		return s
-	} else {
-		return string([]rune(s)[:l]) + "..."
+func loadResources() {
+	var err error
+
+	//load icons
+	iconUnknownBig, err = gg.LoadImage("icons/60/unknown.png")
+	if err != nil {
+		log.Fatalf("unable to load big unknown image: %s", err)
+	}
+	iconUnknownSmall, err = gg.LoadImage("icons/30/unknown.png")
+	if err != nil {
+		log.Fatalf("unable to load small unknown image: %s", err)
+	}
+
+	icons := []string{
+		"01d", "01n", "02d", "02n", "03d", "03n", "04d", "04n",
+		"09d", "09n", "10d", "10n", "11d", "11n", "13d", "13n", "50d", "50n",
+	}
+	for _, icon := range icons {
+		weatherIconsBig[icon], err = gg.LoadImage(fmt.Sprintf("icons/60/%s.png", icon))
+		if err != nil {
+			log.Fatalf("unable to load big icon %s: %s", icon, err)
+		}
+		weatherIconsSmall[icon], err = gg.LoadImage(fmt.Sprintf("icons/30/%s.png", icon))
+		if err != nil {
+			log.Fatalf("unable to load small icon %s: %s", icon, err)
+		}
+	}
+
+	//load fonts
+	fontHeading, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
+	if err != nil {
+		log.Fatalf("unable to load heading font: %s", err)
+	}
+	fontFeedHeader, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 16)
+	if err != nil {
+		log.Fatalf("unable to load feed header font: %s", err)
+	}
+	fontFeedText, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
+	if err != nil {
+		log.Fatalf("unable to load feed text font: %s", err)
+	}
+	fontWeatherCurrent, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Bold.ttf", 28)
+	if err != nil {
+		log.Fatalf("unable to load weather current font: %s", err)
+	}
+	fontWeatherConditions, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 18)
+	if err != nil {
+		log.Fatalf("unable to load weather conditions font: %s", err)
+	}
+	fontWeatherForecast, err = gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
+	if err != nil {
+		log.Fatalf("unable to load weather forecast font: %s", err)
 	}
 }
 
@@ -307,29 +330,29 @@ func extractWeather(items []owm.Weather) weather {
 		w.conditions += item.Description
 	}
 
-	if len(icon) != 0 {
-		imgBig, err := gg.LoadImage(fmt.Sprintf("icons/60/%s.png", icon)) //TODO check icon file name
-		if err != nil {
-			log.Errorf("unable to load big icon %s: %s", icon, err)
-			imgBig = nil
-		}
-		w.iconBig = imgBig
-
-		imgSmall, err := gg.LoadImage(fmt.Sprintf("icons/30/%s.png", icon))
-		if err != nil {
-			log.Errorf("unable to load small image %s: %s", icon, err)
-			imgSmall = nil
-		}
-		w.iconSmall = imgSmall
-	}
-	if w.iconBig == nil {
+	iconBig, ok := weatherIconsBig[icon]
+	if ok {
+		w.iconBig = iconBig
+	} else {
 		w.iconBig = iconUnknownBig
 	}
-	if w.iconSmall == nil {
+
+	iconSmall, ok := weatherIconsSmall[icon]
+	if ok {
+		w.iconSmall = iconSmall
+	} else {
 		w.iconSmall = iconUnknownSmall
 	}
 
 	return w
+}
+
+func trimFeedText(s string, l int) string {
+	if len([]rune(s)) < l {
+		return s
+	} else {
+		return string([]rune(s)[:l]) + "..."
+	}
 }
 
 func formatTemperature(value float64) string {
