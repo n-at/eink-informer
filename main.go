@@ -145,7 +145,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to load weather conditions font: %s", err)
 	}
-	fontWeatherForecast, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 12)
+	fontWeatherForecast, err := gg.LoadFontFace("fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf", 14)
 	if err != nil {
 		log.Fatalf("unable to load weather forecast font: %s", err)
 	}
