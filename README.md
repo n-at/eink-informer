@@ -1,8 +1,40 @@
 # eink-informer
 
-Creates image with information for eink display.
+Creates image with information for e-ink display.
+Prints RSS feed and weather forecast on image that can be output on e-ink display via [go-eink](https://github.com/n-at/go-eink). 
 
-Prints RSS feed and weather forecast on image that can be output on eink display. 
+## Build
+
+Go 1.19+ required.
+
+```bash
+go build -a -o app
+```
+
+## Usage
+
+```txt
+-feed string
+    News feed (RSS, Atom), required (default "https://tass.ru/rss/v2.xml")
+-feed-content-max-length int
+    maximum length of feed content text (default 150)
+-feed-title-max-length int
+    maximum length of feed item title (default 100)
+-output string
+    image output path, required (default "output.png")
+-timezone-offset float
+    timezone offset, hours (default 3)
+-verbose
+    show extended output
+-weather-api-key string
+    openweathermap.org API key, required
+-weather-language string
+    weather display language (default "ru")
+-weather-location string
+    weather location name (default "Pskov, Russia")
+-weather-units string
+    weather measurement system, one of: C, F, K (default "C")
+```
 
 ## Uses
 
