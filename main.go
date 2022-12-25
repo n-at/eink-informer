@@ -267,7 +267,7 @@ func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
 	w.tempMin = formatTemperature(current.Main.TempMin)
 	w.tempCur = formatTemperature(current.Main.Temp)
 	w.tempMax = formatTemperature(current.Main.TempMax)
-	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
+	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
 	w.humidity = current.Main.Humidity
 
 	t := time.Unix(int64(current.Dt), 0).Add(TimezoneOffset * time.Hour)
@@ -281,7 +281,7 @@ func extractWeatherFromForecast(forecast owm.Forecast5WeatherList) weather {
 	w.tempMin = formatTemperature(forecast.Main.TempMin)
 	w.tempCur = formatTemperature(forecast.Main.Temp)
 	w.tempMax = formatTemperature(forecast.Main.TempMax)
-	w.tempRange = fmt.Sprintf("%s...%s", w.tempMin, w.tempMax)
+	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
 	w.humidity = forecast.Main.Humidity
 
 	t := forecast.DtTxt.Add(TimezoneOffset * time.Hour)
