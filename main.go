@@ -48,15 +48,14 @@ var (
 	weatherIconsBig   = make(map[string]image.Image)
 	weatherIconsSmall = make(map[string]image.Image)
 
-	timezoneOffset = +3.0
+	timezoneOffset   = +3.0
+	temperatureUnits = "C"
 )
 
 type weather struct {
 	iconBig    image.Image
 	iconSmall  image.Image
 	conditions string
-	tempMin    string
-	tempMax    string
 	tempCur    string
 	tempRange  string
 	humidity   int
@@ -90,6 +89,7 @@ func main() {
 
 	loadResources()
 	timezoneOffset = *offset
+	temperatureUnits = *weatherUnits
 
 	//rss
 	if len(*feedUrl) == 0 {
@@ -185,7 +185,7 @@ func main() {
 	ctx.DrawImage(weatherValueCurrent.iconBig, WeatherStartX, 0)
 	//current temp/humidity
 	ctx.SetFontFace(fontWeatherCurrent)
-	ctx.DrawString(fmt.Sprintf("%s° / %d%%", weatherValueCurrent.tempCur, weatherValueCurrent.humidity), WeatherStartX+WeatherBigIconSize+WeatherPadding, 30)
+	ctx.DrawString(fmt.Sprintf("%s / %d%%", weatherValueCurrent.tempCur, weatherValueCurrent.humidity), WeatherStartX+WeatherBigIconSize+WeatherPadding, 30)
 	//current conditions
 	conditions := ctx.WordWrap(weatherValueCurrent.conditions, ImageWidth-WeatherStartX-WeatherBigIconSize+WeatherPadding)
 	ctx.SetFontFace(fontWeatherConditions)
@@ -289,10 +289,8 @@ func loadResources() {
 
 func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
 	w := extractWeather(current.Weather)
-	w.tempMin = formatTemperature(current.Main.TempMin)
 	w.tempCur = formatTemperature(current.Main.Temp)
-	w.tempMax = formatTemperature(current.Main.TempMax)
-	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
+	w.tempRange = fmt.Sprintf(formatTemperatureRange(current.Main.Temp, current.Main.FeelsLike))
 	w.humidity = current.Main.Humidity
 
 	t := time.Unix(int64(current.Dt), 0).Add(time.Duration(timezoneOffset * float64(time.Hour)))
@@ -303,10 +301,8 @@ func extractWeatherFromCurrent(current *owm.CurrentWeatherData) weather {
 
 func extractWeatherFromForecast(forecast owm.Forecast5WeatherList) weather {
 	w := extractWeather(forecast.Weather)
-	w.tempMin = formatTemperature(forecast.Main.TempMin)
 	w.tempCur = formatTemperature(forecast.Main.Temp)
-	w.tempMax = formatTemperature(forecast.Main.TempMax)
-	w.tempRange = fmt.Sprintf("%s..%s", w.tempMin, w.tempMax)
+	w.tempRange = fmt.Sprintf(formatTemperatureRange(forecast.Main.Temp, forecast.Main.FeelsLike))
 	w.humidity = forecast.Main.Humidity
 
 	t := forecast.DtTxt.Add(time.Duration(timezoneOffset * float64(time.Hour)))
@@ -358,5 +354,27 @@ func trimFeedText(s string, l int) string {
 }
 
 func formatTemperature(value float64) string {
-	return fmt.Sprintf("%+d", int(math.Round(value)))
+	round := int(math.Round(value))
+	str := fmt.Sprintf("%+d", round)
+	if round == 0 {
+		str = "0"
+	}
+	return fmt.Sprintf("%s °%s", str, temperatureUnits)
+}
+
+func formatTemperatureRange(value1, value2 float64) string {
+	round1 := int(math.Round(value1))
+	round2 := int(math.Round(value2))
+
+	str1 := fmt.Sprintf("%+d", round1)
+	str2 := fmt.Sprintf("%+d", round2)
+
+	if round1 == 0 {
+		str1 = "0"
+	}
+	if round2 == 0 {
+		str2 = "0"
+	}
+
+	return fmt.Sprintf("%s / %s", str1, str2)
 }
